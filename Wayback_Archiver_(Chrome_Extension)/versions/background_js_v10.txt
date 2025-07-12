@@ -1,0 +1,54 @@
+// ✅ Attempt to load user-configurable blocklist
+const DEFAULT_BLOCKLIST = [
+  "accounts.google.com",
+  "youtube.com",
+  "bankofamerica.com",
+  "facebook.com",
+  "github.com"
+];
+
+// ✅ Main navigation listener
+chrome.webNavigation.onCompleted.addListener((details) => {
+  if (details.frameId !== 0) return;
+
+  chrome.storage.sync.get(["autoArchiveEnabled", "blocklist"], (data) => {
+    if (!data.autoArchiveEnabled) return;
+
+    const url = new URL(details.url);
+    const hostname = url.hostname;
+    const BLOCKLIST = data.blocklist || DEFAULT_BLOCKLIST;
+
+    // Blocklist logic
+    if (BLOCKLIST.some(blocked => hostname.includes(blocked))) {
+      console.log(`[Wayback] Skipped (blocklisted): ${url.href}`);
+      return;
+    }
+
+    // Ask popup for confirmation
+    chrome.runtime.sendMessage({ type: "confirm-archive", url: url.href });
+    // Archiving will be triggered by popup_script.js after confirmation
+  });
+
+}, {
+  url: [{ schemes: ["http", "https"] }]
+});
+
+// ✅ Listen for user decision from popup
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.type === "archive-confirmed") {
+    const archiveUrl = `https://web.archive.org/save/${encodeURIComponent(msg.url)}`;
+    fetch(archiveUrl, { method: "GET", mode: "no-cors" });
+
+    chrome.storage.local.get(["archiveHistory"], (result) => {
+      const archiveHistory = result.archiveHistory || [];
+      archiveHistory.push({ url: msg.url, time: new Date().toISOString() });
+      chrome.storage.local.set({ archiveHistory });
+    });
+
+    console.log(`[Wayback] Archived: ${msg.url}`);
+  }
+
+  if (msg.type === "archive-declined") {
+    console.log(`[Wayback] User declined to archive: ${msg.url}`);
+  }
+});
