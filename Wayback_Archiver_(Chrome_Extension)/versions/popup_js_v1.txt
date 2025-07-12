@@ -1,0 +1,32 @@
+document.addEventListener("DOMContentLoaded", () => {
+  const toggle = document.getElementById("toggle-archive");
+  const list = document.getElementById("archive-list");
+  const clearBtn = document.getElementById("clear-history");
+
+  // Load saved toggle state
+  chrome.storage.sync.get("autoArchiveEnabled", (data) => {
+    toggle.checked = !!data.autoArchiveEnabled;
+  });
+
+  // Load archive history
+  chrome.storage.local.get("archiveHistory", (data) => {
+    const history = data.archiveHistory || [];
+    for (const item of history.reverse()) {
+      const li = document.createElement("li");
+      li.textContent = `${new Date(item.time).toLocaleString()} - ${item.url}`;
+      list.appendChild(li);
+    }
+  });
+
+  // Toggle listener
+  toggle.addEventListener("change", () => {
+    chrome.storage.sync.set({ autoArchiveEnabled: toggle.checked });
+  });
+
+  // Clear history
+  clearBtn.addEventListener("click", () => {
+    chrome.storage.local.set({ archiveHistory: [] }, () => {
+      list.innerHTML = "";
+    });
+  });
+});

@@ -1,0 +1,23 @@
+chrome.webNavigation.onCompleted.addListener(async (details) => {
+  const url = details.url;
+
+  // Avoid archiving non-web URLs or known private/internal pages
+  if (
+    url.startsWith("chrome://") ||
+    url.startsWith("chrome-extension://") ||
+    url.startsWith("file://") ||
+    url.includes("web.archive.org")
+  ) {
+    return;
+  }
+
+  // Wayback Machine save endpoint
+  const archiveUrl = `https://web.archive.org/save/${encodeURIComponent(url)}`;
+
+  // Fire and forget (no need to wait for a response)
+  fetch(archiveUrl, { method: "GET", mode: "no-cors" });
+
+  console.log(`[Wayback] Archived: ${url}`);
+}, {
+  url: [{ schemes: ["http", "https"] }]
+});

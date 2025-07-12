@@ -1,0 +1,50 @@
+document.addEventListener("DOMContentLoaded", () => {
+  const toggleCheckbox = document.getElementById("toggle-archive");
+  const clearButton = document.getElementById("clear-history");
+  const archiveList = document.getElementById("archive-list");
+  const confirmBox = document.getElementById("confirm-box");
+  const yesBtn = document.getElementById("yes");
+  const noBtn = document.getElementById("no");
+
+  // Load checkbox state
+  chrome.storage.sync.get("autoArchiveEnabled", (data) => {
+    toggleCheckbox.checked = data.autoArchiveEnabled || false;
+  });
+
+  toggleCheckbox.addEventListener("change", () => {
+    chrome.storage.sync.set({ autoArchiveEnabled: toggleCheckbox.checked });
+  });
+
+  clearButton.addEventListener("click", () => {
+    chrome.storage.local.set({ archiveHistory: [] }, () => {
+      archiveList.innerHTML = "";
+    });
+  });
+
+  // Load archive history
+  chrome.storage.local.get("archiveHistory", (data) => {
+    const logs = data.archiveHistory || [];
+    logs.slice().reverse().forEach(item => {
+      const li = document.createElement("li");
+      li.textContent = `${new Date(item.time).toLocaleTimeString()} - ${item.url}`;
+      archiveList.appendChild(li);
+    });
+  });
+
+  // Handle background confirmation
+  chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (msg.type === "confirm-archive") {
+      confirmBox.style.display = "block";
+
+      yesBtn.onclick = () => {
+        chrome.runtime.sendMessage({ type: "archive-confirmed", url: msg.url });
+        confirmBox.style.display = "none";
+      };
+
+      noBtn.onclick = () => {
+        chrome.runtime.sendMessage({ type: "archive-declined", url: msg.url });
+        confirmBox.style.display = "none";
+      };
+    }
+  });
+});

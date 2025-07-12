@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Wayback Auto Save",
+  "description": "Automatically sends visited URLs to the Wayback Machine.",
+  "version": "1.0",
+  "permissions": [
+    "tabs",
+    "webNavigation",
+    "storage"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "action": {
+    "default_title": "Wayback Archiver",
+    "default_popup": "popup.html"
+  }
+}

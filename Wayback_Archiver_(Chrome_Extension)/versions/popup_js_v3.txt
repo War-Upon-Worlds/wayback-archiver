@@ -1,0 +1,66 @@
+document.addEventListener("DOMContentLoaded", () => {
+  const toggleCheckbox = document.getElementById("toggle-archive");
+  const clearButton = document.getElementById("clear-history");
+  const archiveList = document.getElementById("archive-list");
+  const confirmBox = document.getElementById("confirm-box");
+  const yesBtn = document.getElementById("yes");
+  const noBtn = document.getElementById("no");
+  const downloadBtn = document.getElementById("download-logs");
+
+  // Load checkbox state
+  chrome.storage.sync.get("autoArchiveEnabled", (data) => {
+    toggleCheckbox.checked = data.autoArchiveEnabled || false;
+  });
+
+  toggleCheckbox.addEventListener("change", () => {
+    chrome.storage.sync.set({ autoArchiveEnabled: toggleCheckbox.checked });
+  });
+
+  clearButton.addEventListener("click", () => {
+    chrome.storage.local.set({ archiveHistory: [] }, () => {
+      archiveList.innerHTML = "";
+    });
+  });
+
+  // Load archive history
+  chrome.storage.local.get("archiveHistory", (data) => {
+    const logs = data.archiveHistory || [];
+    logs.slice().reverse().forEach(item => {
+      const li = document.createElement("li");
+      li.textContent = `${new Date(item.time).toLocaleTimeString()} - ${item.url}`;
+      archiveList.appendChild(li);
+    });
+  });
+
+  // Handle archive confirmation from background script
+  chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (msg.type === "confirm-archive") {
+      confirmBox.style.display = "block";
+
+      yesBtn.onclick = () => {
+        chrome.runtime.sendMessage({ type: "archive-confirmed", url: msg.url });
+        confirmBox.style.display = "none";
+      };
+
+      noBtn.onclick = () => {
+        chrome.runtime.sendMessage({ type: "archive-declined", url: msg.url });
+        confirmBox.style.display = "none";
+      };
+    }
+  });
+
+  // ✅ Download Logs as JSON
+  downloadBtn.addEventListener("click", () => {
+    chrome.storage.local.get(["archiveHistory"], (result) => {
+      const archiveHistory = result.archiveHistory || [];
+      const blob = new Blob([JSON.stringify(archiveHistory, null, 2)], { type: "application/json" });
+
+      const url = URL.createObjectURL(blob);
+      chrome.downloads.download({
+        url: url,
+        filename: `wayback_logs_${new Date().toISOString().slice(0, 10)}.json`,
+        saveAs: true  // Prompts user to choose location
+      });
+    });
+  });
+});

@@ -1,0 +1,69 @@
+document.addEventListener("DOMContentLoaded", () => {
+  const toggleCheckbox = document.getElementById("toggle-archive");
+  const clearButton = document.getElementById("clear-history");
+  const archiveList = document.getElementById("archive-list");
+  const yesBtn = document.getElementById("yes");
+  const noBtn = document.getElementById("no");
+  const downloadBtn = document.getElementById("download-logs");
+
+  // Load toggle state
+  chrome.storage.sync.get("autoArchiveEnabled", (data) => {
+    toggleCheckbox.checked = data.autoArchiveEnabled || false;
+  });
+
+  toggleCheckbox.addEventListener("change", () => {
+    chrome.storage.sync.set({ autoArchiveEnabled: toggleCheckbox.checked });
+  });
+
+  clearButton.addEventListener("click", () => {
+    chrome.storage.local.set({ archiveHistory: [] }, () => {
+      archiveList.innerHTML = "";
+    });
+  });
+
+  downloadBtn.addEventListener("click", () => {
+    chrome.storage.local.get(["archiveHistory"], (result) => {
+      const archiveHistory = result.archiveHistory || [];
+      const blob = new Blob([JSON.stringify(archiveHistory, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      chrome.downloads.download({
+        url: url,
+        filename: `wayback_logs_${new Date().toISOString().slice(0, 10)}.json`,
+        saveAs: true
+      });
+    });
+  });
+
+  // Load archive log
+  chrome.storage.local.get("archiveHistory", (data) => {
+    const logs = data.archiveHistory || [];
+    logs.slice().reverse().forEach(item => {
+      const li = document.createElement("li");
+      li.textContent = `${new Date(item.time).toLocaleTimeString()} - ${item.url}`;
+      archiveList.appendChild(li);
+    });
+  });
+
+  // Manual archive confirmation
+  yesBtn.addEventListener("click", () => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tabUrl = tabs[0].url;
+      const saveUrl = `https://web.archive.org/save/${encodeURIComponent(tabUrl)}`;
+      fetch(saveUrl, { method: "GET", mode: "no-cors" });
+
+      // Log to local history
+      chrome.storage.local.get(["archiveHistory"], (result) => {
+        let archiveHistory = result.archiveHistory || [];
+        archiveHistory.push({
+          url: tabUrl,
+          time: new Date().toISOString()
+        });
+        chrome.storage.local.set({ archiveHistory });
+      });
+    });
+  });
+
+  noBtn.addEventListener("click", () => {
+    window.close(); // optional: just close the popup
+  });
+});

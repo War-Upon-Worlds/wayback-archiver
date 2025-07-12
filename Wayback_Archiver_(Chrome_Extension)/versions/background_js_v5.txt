@@ -1,0 +1,44 @@
+// === ✅ CONFIGURATION === //
+const BLOCKLIST = [
+  "accounts.google.com",
+  "youtube.com",
+  "bankofamerica.com",
+  "facebook.com",
+  "github.com"
+];
+
+// === ✅ Main Event Listener === //
+chrome.webNavigation.onCompleted.addListener((details) => {
+  if (details.frameId !== 0) return;
+
+  // Check if auto-archiving is enabled
+  chrome.storage.sync.get("autoArchiveEnabled", (data) => {
+    if (!data.autoArchiveEnabled) return;
+
+    const url = new URL(details.url);
+    const hostname = url.hostname;
+
+    // Blocklist check
+    if (BLOCKLIST.some(blocked => hostname.includes(blocked))) {
+      console.log(`[Wayback] Skipped (blocklisted): ${url.href}`);
+      return;
+    }
+
+    // Archive it
+    const archiveUrl = `https://web.archive.org/save/${encodeURIComponent(url.href)}`;
+    fetch(archiveUrl, { method: "GET", mode: "no-cors" });
+    console.log(`[Wayback] Archived: ${url.href}`);
+
+    // Load, update, and save archive log
+    chrome.storage.local.get(["archiveHistory"], (result) => {
+      let archiveHistory = result.archiveHistory || [];
+      archiveHistory.push({
+        url: url.href,
+        time: new Date().toISOString()
+      });
+      chrome.storage.local.set({ archiveHistory });
+    });
+  });
+}, {
+  url: [{ schemes: ["http", "https"] }]
+});

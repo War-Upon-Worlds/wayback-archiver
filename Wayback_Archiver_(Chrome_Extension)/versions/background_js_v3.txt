@@ -1,0 +1,49 @@
+// === ✅ CONFIGURATION === //
+const BLOCKLIST = [
+  "accounts.google.com",
+  "youtube.com",
+  "bankofamerica.com",
+  "facebook.com",
+  "github.com"
+];
+
+// === ✅ Load Saved Archive History === //
+let archiveHistory = [];
+chrome.storage.local.get(["archiveHistory"], (result) => {
+  if (result.archiveHistory) archiveHistory = result.archiveHistory;
+});
+
+// === ✅ Main Event Listener === //
+chrome.webNavigation.onCompleted.addListener(async (details) => {
+  if (details.frameId !== 0) return;
+  const url = new URL(details.url);
+  const hostname = url.hostname;
+
+  // Blocklist check
+  if (BLOCKLIST.some(blocked => hostname.includes(blocked))) {
+    console.log(`[Wayback] Skipped (blocklisted): ${url.href}`);
+    return;
+  }
+
+  // Ask for confirmation before archiving
+  const confirmArchive = confirm(`Archive this page?\n${url.href}`);
+  if (!confirmArchive) {
+    console.log(`[Wayback] Skipped by user: ${url.href}`);
+    return;
+  }
+
+  // Archive
+  const archiveUrl = `https://web.archive.org/save/${encodeURIComponent(url.href)}`;
+  fetch(archiveUrl, { method: "GET", mode: "no-cors" });
+  console.log(`[Wayback] Archived: ${url.href}`);
+
+  // Save to local archive history
+  archiveHistory.push({
+    url: url.href,
+    time: new Date().toISOString()
+  });
+  chrome.storage.local.set({ archiveHistory });
+
+}, {
+  url: [{ schemes: ["http", "https"] }]
+});

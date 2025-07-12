@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Wayback Archiver</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 10px;
+      width: 300px;
+    }
+    button, label {
+      margin-top: 10px;
+      display: block;
+    }
+    ul {
+      padding-left: 20px;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <h3>Wayback Archiver</h3>
+  <label>
+    <input type="checkbox" id="toggle-archive"> Auto-Archive Enabled
+  </label>
+  <button id="clear-history">Clear History</button>
+  <h4>Archive Log:</h4>
+  <ul id="archive-list"></ul>
+
+  <script src="popup.js"></script>
+</body>
+</html>
